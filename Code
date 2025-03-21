@@ -1,0 +1,210 @@
+from google.colab import files
+uploaded = files.upload()
+
+import pandas as pd
+df = pd.read_csv('garbage_bin_data.csv')
+print(df.head())  # Check if data is loaded correctly
+
+# Install necessary libraries (if not installed)
+!pip install xgboost seaborn matplotlib scikit-learn pandas numpy
+
+# Import required libraries
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
+
+# Upload dataset manually in Google Colab (run this cell and upload the CSV file)
+from google.colab import files
+uploaded = files.upload()
+
+# Load dataset
+df = pd.read_csv('garbage_bin_data.csv')  # Change filename if needed
+
+# Remove extra spaces from column names
+df.columns = df.columns.str.strip()
+
+# Display first few rows
+print(df.head())
+
+# Check for missing values
+print("Missing Values:\n", df.isnull().sum())
+
+# Drop irrelevant columns
+df = df.drop(columns=['Bin ID', 'Date', 'Time', 'Location'])
+
+
+# Handle missing values (fill or drop)
+df = df.dropna()
+
+# Ensure 'Fill Percentage' exists in dataset
+if 'Fill Percentage' not in df.columns:
+    raise ValueError("Error: 'Fill Percentage' column not found in dataset.")
+
+# Define feature variables (X) and target variable (y)
+X = df.drop(columns=['Fill Percentage'])
+y = (df['Fill Percentage'] >= 80).astype(int)  # Binary classification (1: Full, 0: Not Full)
+
+# Split dataset into training & testing sets (80% train, 20% test)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Normalize feature variables
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+print("Data Preprocessing Done ✅")
+
+# Define models
+models = {
+    'Logistic Regression': LogisticRegression(),
+    'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
+    'XGBoost': XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+}
+
+# Train & Evaluate Models
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+
+    print(f"\n📊 {name} Model Evaluation:")
+    print("✅ Accuracy:", accuracy_score(y_test, y_pred))
+    print("🎯 Precision:", precision_score(y_test, y_pred))
+    print("🔄 Recall:", recall_score(y_test, y_pred))
+    print("⚖️ F1 Score:", f1_score(y_test, y_pred))
+    print("📉 Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+    print("📄 Classification Report:\n", classification_report(y_test, y_pred))
+
+from sklearn.model_selection import GridSearchCV
+
+# Convert X_train back to DataFrame (if needed)
+X_train_df = pd.DataFrame(X_train, columns=X.columns)
+
+# Define hyperparameter grid
+param_grid = {
+    'n_estimators': [50, 100, 150],  # Number of trees in forest
+    'max_depth': [5, 10, 20],        # Depth of each tree (removed None)
+    'min_samples_split': [2, 5, 10]  # Min samples required to split a node
+}
+
+# Perform Grid Search with Cross-Validation
+grid_search = GridSearchCV(RandomForestClassifier(random_state=42),
+                           param_grid,
+                           cv=3,  # Use 3-fold cross-validation for faster tuning
+                           scoring='accuracy',
+                           n_jobs=-1)  # Use all CPU cores for faster processing
+
+# Fit the model
+grid_search.fit(X_train_df, y_train)
+
+# Print Best Parameters
+print("\n🏆 Best Parameters:", grid_search.best_params_)
+
+# Use the best model from GridSearch
+best_rf = grid_search.best_estimator_
+
+# Predict using best model
+y_pred_best = best_rf.predict(X_test)
+
+# Generate confusion matrix
+conf_matrix = confusion_matrix(y_test, y_pred_best)
+
+# Plot heatmap
+plt.figure(figsize=(5, 4))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues')
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix for Best Model")
+plt.show()
+
+print("GridSearchCV Status:", hasattr(grid_search, 'best_estimator_'))
+
+print("X_train shape:", X_train.shape)
+print("y_train shape:", y_train.shape)
+
+# Check for NaN values
+print("Missing values in X_train:\n", pd.DataFrame(X_train).isnull().sum())
+print("Missing values in y_train:\n", pd.DataFrame(y_train).isnull().sum())
+
+# Check unique values in y_train
+print("Unique values in y_train:", np.unique(y_train))
+
+# Assign the best model found from GridSearchCV
+best_model = grid_search.best_estimator_
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
+
+# Define hyperparameter grid
+param_grid = {
+    'n_estimators': [50, 100, 150],
+    'max_depth': [None, 10, 20],
+    'min_samples_split': [2, 5, 10]
+}
+
+# Run GridSearchCV with cv=2
+try:
+    grid_search = GridSearchCV(RandomForestClassifier(random_state=42), param_grid, cv=2, scoring='accuracy')
+    grid_search.fit(X_train, y_train)  # Fit the model
+
+    # Assign best model
+    best_model = grid_search.best_estimator_
+    print("\n🏆 Best Parameters:", grid_search.best_params_)
+
+except Exception as e:
+    print("❌ GridSearchCV Failed! Error:", str(e))
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
+
+# Make predictions on the test set
+y_pred = best_model.predict(X_test)
+
+# Evaluate model performance
+print("\n📊 Model Evaluation:")
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Precision:", precision_score(y_test, y_pred))
+print("Recall:", recall_score(y_test, y_pred))
+print("F1 Score:", f1_score(y_test, y_pred))
+print("\nConfusion Matrix:\n", confusion_matrix(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+import pandas as pd
+
+# Ensure correct feature names
+feature_names = X.columns.tolist()
+
+# Example new data (modify values as needed)
+new_data_values = [[11, 500, 1000, 40.618, -70.0060, 24, 78]]  # Ensure same number of features
+
+# Convert to DataFrame with correct column names
+new_data = pd.DataFrame(new_data_values, columns=feature_names)
+
+# Debugging Step: Check new data format
+print("\nNew Data Shape:", new_data.shape)
+print("Expected Number of Features:", len(feature_names))
+print("New Data Columns:", new_data.columns)
+
+# Scale new data using previously fitted scaler
+new_data_scaled = scaler.transform(new_data)
+
+# Predict bin status using the best model
+prediction = best_model.predict(new_data_scaled)
+
+print("\n🗑️ Predicted Bin Status (1=Full, 0=Not Full):", prediction[0])
+
+import joblib
+
+# Save the best model
+joblib.dump(best_rf, 'garbage_bin_model.pkl')
+
+# Download the model
+from google.colab import files
+files.download('garbage_bin_model.pkl')
+
+print("🎉 Model Saved & Ready for Deployment!")
